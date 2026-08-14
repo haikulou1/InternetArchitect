@@ -2,7 +2,7 @@
 
 > 阶段: loop-1 / 需求澄清
 > 技能: brainstorming
-> 状态: 进行中（首轮提问被前端接管，待恢复）
+> 状态: ✅ 全部澄清完成，设计定稿，可进入实施
 
 ---
 
@@ -21,7 +21,7 @@
 ### 关键发现
 
 - **leecode** 已有冒泡排序和哈希表实现，可直接复用算法核心逻辑
-- **InternetArchitect** 的 `springboot_study` 是标准 Spring Boot 2.2.2 REST 项目（groupId: `com.mashibing`），天然适合做后端
+- **InternetArchitect** 的 Spring Boot 2.2.2 项目可作为后端技术参考（实际后端建在 leecode）
 - **haikulou1.github.io** 是 Hexo 博客，需新增独立页面承载前端功能（三 Tab + 图表可视化）
 
 ## 3. 待澄清问题
@@ -59,53 +59,79 @@
 
 ---
 
-## 待实施
+## 4. 待实施
 
-### 后端（leecode 仓库）— 5 个接口
-1. **HelloWorld** — GET 返回 "Hello World"
-2. **哈希** — POST 接收字符串，返回 MD5 和 SHA256
-3. **排序** — GET 冒泡排序固定数组，返回排序过程/结果
-4. **埋点** — POST 接收埋点数据（含人员类型/层级/部门维度），持久化存储
-5. **导出报表** — GET 按维度聚合统计，支持 CSV 和 Excel (xlsx) 导出
+### 后端（leecode 仓库）— 新建 `springboot-api` 模块（Spring Boot 3.x / Java 17+）
+| # | 接口 | 方法 | 路径 | 说明 |
+|---|------|------|------|------|
+| 1 | HelloWorld | GET | `/api/helloworld` | 返回 "Hello World" |
+| 2 | 哈希 | POST | `/api/hash` | Body: `{input, algo}` → MD5/SHA256 十六进制 |
+| 3 | 排序 | GET | `/api/bubblesort` | 固定数组冒泡排序，返回每轮过程 |
+| 4 | 埋点上报 | POST | `/api/track` | Body: `{apiName, caller, type, level, dept}` |
+| 5 | 导出报表 | GET | `/api/export?format=csv\|xlsx&dimension=type\|level\|dept` | 聚合统计导出 |
+| 6 | 统计查询 | GET | `/api/stats?dimension=type\|level\|dept` | JSON 聚合统计 |
 
-### 前端（haikulou1.github.io）— Vue/React SPA
-- 三 Tab 页面 + 图表报表（ECharts）
+- 复用 leecode 现有 `冒泡排序.java`、`HashTabDemo.java` 算法核心
+- 埋点存储：H2 内存数据库（轻量无外部依赖）
+- 埋点采集：Spring AOP 切面自动记录每次 API 调用的调用人和时间
+- 埋点维度枚举（默认值）：
+  - **人员类型**：正式 / 外包 / 实习
+  - **人员层级**：L1 / L2 / L3 / L4 / L5 / L6 / L7 / L8 / L9 / L10
+  - **人员部门**：技术 / 产品 / 运营 / 市场 / 职能
+
+### 前端（haikulou1.github.io）— React 18 + Vite SPA
+- 新建 `/api-demo/` 页面，三 Tab 切换
+- 图表库：ECharts（折线图/饼图/柱状图）
+- 导出：前端调用导出接口，触发浏览器下载 CSV/XLSX
 
 ---
 
-> 等待用户确认后进入实施阶段。
+## 6. Spec 自检 (Self-Review)
 
-## 4. 初步架构设想
+| 检查项 | 结果 |
+|--------|------|
+| **Placeholder 扫描** | ✅ 无 TBD/TODO，接口路径和参数均已明确 |
+| **内部一致性** | ✅ 架构图已修正为 leecode 后端，与确认决策一致 |
+| **范围检查** | ✅ 6 接口 + 1 前端页面，适合单次实施计划 |
+| **歧义检查** | ✅ 前端框架已确认：React 18 + Vite |
+| **歧义检查** | ✅ Spring Boot 版本已确认：3.x (Java 17+) |
+| **歧义检查** | ✅ 埋点维度枚举已确认：正式/外包/实习，L1-L10，技术/产品/运营/市场/职能 |
+
+### 收口状态：全部 3 项已确认，无遗留问题。
+
+## 5. 架构设想
+
+> ⚠️ 注意：以下架构已根据全部 6 项澄清结果修正。后端确认在 **leecode** 仓库中新建 Spring Boot 模块。
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  haikulou1.github.io (Hexo 前端)                 │
+│  haikulou1.github.io (前端 SPA)                  │
 │  /api-demo/                                      │
 │  ├── Tab1: HelloWorld 结果展示                   │
 │  ├── Tab2: 哈希算法 结果展示                     │
 │  ├── Tab3: 冒泡排序 结果展示                     │
-│  ├── 导出按钮 → 调用后端导出接口                 │
-│  └── 埋点报表 → 折线图/饼图/柱状图               │
+│  ├── 导出按钮 → 调用后端导出接口(CSV/XLSX)       │
+│  └── 埋点报表 → 折线图/饼图/柱状图(ECharts)      │
 └──────────────┬──────────────────────────────────┘
-               │ HTTP/REST
+               │ HTTP/REST (跨域)
 ┌──────────────▼──────────────────────────────────┐
-│  InternetArchitect (Spring Boot 后端)            │
-│  ├── GET  /api/helloworld                       │
-│  ├── POST /api/hash                             │
-│  ├── POST /api/bubblesort                       │
-│  ├── GET  /api/export/{type}                    │
-│  ├── AOP 埋点切面（记录调用次数+调用人）          │
-│  └── GET  /api/stats（埋点统计查询）             │
-└──────────────┬──────────────────────────────────┘
-               │ 复用算法核心
-┌──────────────▼──────────────────────────────────┐
-│  leecode (算法库)                                │
-│  ├── 冒泡排序.java                               │
-│  └── HashTabDemo.java                            │
+│  leecode (Spring Boot 后端 + 算法核心)           │
+│  ├── datastruct/src/排序/冒泡排序.java (复用)    │
+│  ├── datastruct/src/Hashtab/HashTabDemo.java     │
+│  ├── springboot-api/ (新建模块)                  │
+│  │   ├── GET  /api/helloworld                   │
+│  │   ├── POST /api/hash    {input, algo}         │
+│  │   ├── GET  /api/bubblesort                    │
+│  │   ├── GET  /api/export?format=csv|xlsx        │
+│  │   │       &dimension=type|level|dept          │
+│  │   ├── POST /api/track  (埋点上报)             │
+│  │   └── GET  /api/stats   (聚合统计查询)        │
+│  └── AOP 埋点切面 + H2/内存存储                  │
 └─────────────────────────────────────────────────┘
 ```
 
-## 5. 当前状态
+## 7. 当前状态
 
-- **loop-1 需求澄清**：首轮提问被前端接管（rejected=true），等待用户响应后继续。
-- **下一动作**：用户确认后端项目归属后，继续逐一澄清剩余问题。
+- **loop-1 需求澄清**：✅ 全部 9 项澄清已完成，设计文档已定稿。
+- **Spec 自检**：全部通过，无遗留问题。
+- **下一动作**：进入实施阶段（writing-plans）。
